@@ -18,9 +18,9 @@ for (1 .. 20) {
     isnt($random, $different);
 }
 
-for (8 .. 2 ** 8) {
-    ok($random = Data::Rand::Obscure::create(length => $_)); is(length $random, $_);
-    ok($random = Data::Rand::Obscure::create_hex(length => $_)); is(length $random, $_);
-    ok($random = Data::Rand::Obscure::create_b64(length => $_)); is(length $random, $_);
-    ok($random = Data::Rand::Obscure::create_bin(length => $_)); is(length $random, $_);
+for my $length (8 .. 2 ** 8) {
+    ok($random = Data::Rand::Obscure::create(length => $length)); is(length($random), $length);
+    ok($random = Data::Rand::Obscure::create_hex(length => $length)); is(length($random), $length);
+    ok($random = Data::Rand::Obscure::create_b64(length => $length)); is(length($random), $length);
+    ok($random = Data::Rand::Obscure::create_bin(length => $length)); is(length($random), $length);
 }

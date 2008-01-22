@@ -1,19 +1,7 @@
-package Data::Rand::Obscure;
+package Data::Rand::Obscure::Generator;
 
 use warnings;
 use strict;
-
-=head1 NAME
-
-Data::Rand::Obscure - Generate (fairly) random strings easily.
-
-=head1 VERSION
-
-Version 0.020
-
-=cut
-
-our $VERSION = '0.020';
 
 =head1 SYNOPSIS
 
@@ -38,43 +26,18 @@ our $VERSION = '0.020';
     # A random value containing only hexadecimal characters and 103 characters in length:
     $value = create_hex(length => 103);
 
-    # Object-orientated
-
-    my $generator = Data::Rand::Obscure->new(seeder => sub { ... # My special seeding algorithm # },
-        digester => sub { return $my_favorite_digester; });
-
-    $value = $generator->create;
-
-    $value = $generator->create_hex(length => 32);
-
 =head1 DESCRIPTION
-
-Data::Rand::Obscure provides a method for generating random hexadecimal, binary, and base64 strings of varying length.
-To do this, it first generates a pseudo-random "seed" and hashes it using a SHA-1, SHA-256, or MD5 digesting algorithm.
-
-Currently, the seed generator is:
-
-    join("", <an increasing counter>, time, rand, $$, {})
-
-You can use the output to make obscure "one-shot" identifiers for cookie data, "secret" values, etc.
-
-Values are not GUARANTEED to be unique (see L<Data::UUID> for that), but should be sufficient for most purposes.
-
-This package was inspired by (and contains code taken from) the L<Catalyst::Plugin::Session> package by Yuval Kogman
 
 =cut
 
 use Digest;
 use Carp::Clan;
-
-my $SINGLETON; # Could be cute and keep this untouchable, but why bother.
-sub singleton() {
-    return $SINGLETON ||= __PACKAGE__->new;
-}
+use Object::Tiny qw/seeder digester/;
+use vars qw/$_default_seeder $_default_digester/;
 
 =head1 METHODS
 
-=head2 Data::Rand::Obscure->new([ seeder => <seeder>, digester => <digester> ])
+=head2 Data::Rand::Obscure::Generator->new([ seeder => <seeder>, digester => <digester> ])
 
 Returns a Data::Rand::Obscure::Generator with the following methods:
 
@@ -89,21 +52,71 @@ It should return some seed value that will be digested.
 You may also optionally supply a digester subroutine, which is also called everytime a new value is to be generated.
 It should return a L<Digest> object of some kind (which will be used to take the digest of the seed value).
 
+=head2 $generator->seeder
+
+Returns the seeding code reference for $generator
+
+=head2 $generator->digester
+
+Returns the L<Digest>-generating code reference for $generator
+
 =cut
 
 sub new {
-    use Data::Rand::Obscure::Generator; # Long enough? :(
-    my $class = shift;
-    croak "You should extend Data::Rand::Obscure::Generator instead" unless $class eq __PACKAGE__;
-    return Data::Rand::Obscure::Generator->new(@_);
+    my $self = bless {}, shift;
+    local %_ = @_;
+
+    croak "You supplied a seeder but it's undefined" if exists $_{seeder} && ! $_{seeder};
+    croak "You supplied a digester but it's undefined" if exists $_{digester} && ! $_{digester};
+    
+    my $seeder = $self->{seeder} = $_{seeder} || $_default_seeder;
+    my $digester = $self->{digester} = $_{digester} || $_default_digester;
+
+    croak "The given seeder ($seeder) is not a code reference" unless ref $seeder eq "CODE";
+    croak "The given digester ($digester) is not a code reference" unless ref $digester eq "CODE";
+
+    return $self;
 }
 
-=head1 EXPORTS 
+sub _create {
+    my $self = shift;
 
-=cut
+    my $digest = $self->digester->();
+    my $seed = $self->seeder->();
+    $digest->add($seed);
+    return $digest;
+}
 
-use vars qw/@ISA @EXPORT_OK/; use Exporter(); @ISA = qw/Exporter/;
-@EXPORT_OK = qw/create create_hex create_bin create_b64/;
+sub _create_to_length {
+    my $self = shift;
+    my $method = shift;
+    my $length = shift;
+    $length > 0 or croak "You need to specify a length greater than 0";
+
+    my $result = "";
+    while (length($result) < $length) {
+        $result .= $self->$method;
+    }
+
+    return substr $result, 0, $length;
+}
+
+sub _create_bin {
+    my $self = shift;
+    return $self->_create->digest;
+}
+
+sub _create_hex {
+    my $self = shift;
+    return $self->_create->hexdigest;
+}
+
+sub _create_b64 {
+    my $self = shift;
+    return $self->_create->b64digest;
+}
+
+=head1 METHODS 
 
 =head2 $value = create([ length => <length> ])
 
@@ -126,22 +139,48 @@ If <length> is specified, then $value is (technically) not guaranteed to be a "l
 =cut
 
 sub create {
-    return singleton->create_hex(@_);
+    my $self = shift;
+    return $self->create_hex(@_);
 }
 
 for my $name (map { "create_$_" } qw/hex bin b64/) {
     no strict 'refs';
+    my $method = "_$name";
     *$name = sub {
-        return singleton->$name(@_);
+        my $self = shift;
+        return $self->$method unless @_;
+        local %_ = @_;
+        return $self->_create_to_length($method, $_{length}) if exists $_{length};
+        croak "Don't know what you want to do: length wasn't specified, but \@_ was non-empty.";
     };
 }
 
-=head1 FUNCTIONS
+# HoD not required. :)
+my $default_seeder_counter = 0;
+$_default_seeder = sub {
+    return join("", ++$default_seeder_counter, time, rand, $$, overload::StrVal({}));
+};
 
-=head2 singleton
+my $digest_algorithm;
+sub _find_digester() {
+    unless ($digest_algorithm) {
+        foreach my $algorithm (qw/SHA-1 SHA-256 MD5/) {
+            if ( eval { Digest->new($algorithm) } ) {
+                $digest_algorithm = $algorithm;
+                last;
+            }
+        }
+        die "Could not find a suitable Digest module. Please install "
+              . "Digest::SHA1, Digest::SHA, or Digest::MD5"
+            unless $digest_algorithm;
+    }
 
-Returns the Data::Rand::Obscure::Generator used in the above exported functions
-You probably don't need to use this.
+    return Digest->new($digest_algorithm);
+}
+
+$_default_digester = sub {
+    return _find_digester();
+};
 
 =head1 AUTHOR
 
@@ -201,5 +240,3 @@ under the same terms as Perl itself.
 =cut
 
 1; # End of Data::Rand::Obscure
-
-__END__
