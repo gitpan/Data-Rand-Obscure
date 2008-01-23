@@ -1,6 +1,6 @@
 ---
 name: Data-Rand-Obscure
-version: 0.020
+version: 0.021
 author:
   - 'Robert Krimen <rkrimen@cpan.org>'
 abstract: Generate (fairly) random strings easily.
@@ -16,7 +16,7 @@ build_requires:
 provides:
   Data::Rand::Obscure:
     file: lib/Data/Rand/Obscure.pm
-    version: 0.020
+    version: 0.021
   Data::Rand::Obscure::Generator:
     file: lib/Data/Rand/Obscure/Generator.pm
 generated_by: Module::Build version 0.2806

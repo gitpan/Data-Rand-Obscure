@@ -9,11 +9,11 @@ Data::Rand::Obscure - Generate (fairly) random strings easily.
 
 =head1 VERSION
 
-Version 0.020
+Version 0.021
 
 =cut
 
-our $VERSION = '0.020';
+our $VERSION = '0.021';
 
 =head1 SYNOPSIS
 

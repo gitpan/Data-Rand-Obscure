@@ -5,28 +5,34 @@ use strict;
 
 =head1 SYNOPSIS
 
-    use Data::Rand::Obscure qw/create create_b64/;
+    use Data::Rand::Obscure::Generator;
+
+    my $generator = Data::Rand::Obscure::Generator->new;
 
     # Some random hexadecimal string value.
-    $value = create;
+    $value = $generator->create;
 
     ...
 
     # Random base64 value:
-    $value = create_b64;
+    $value = $generator->create_b64;
 
     # Random binary value:
-    $value = create_bin;
+    $value = $generator->create_bin;
 
     # Random hexadecimal value:
-    $value = create_hex;
+    $value = $generator->create_hex;
 
     ...
 
     # A random value containing only hexadecimal characters and 103 characters in length:
-    $value = create_hex(length => 103);
+    $value = $generator->create_hex(length => 103);
 
 =head1 DESCRIPTION
+
+An objectified version of L<Data::Rand::Obscure> functionality
+
+This is the actual workhorse of the distribution, L<Data::Rand::Obscure> contains function wrappers around a singleton object.
 
 =cut
 
@@ -37,7 +43,7 @@ use vars qw/$_default_seeder $_default_digester/;
 
 =head1 METHODS
 
-=head2 Data::Rand::Obscure::Generator->new([ seeder => <seeder>, digester => <digester> ])
+=head2 $generator = Data::Rand::Obscure::Generator->new([ seeder => <seeder>, digester => <digester> ])
 
 Returns a Data::Rand::Obscure::Generator with the following methods:
 
@@ -118,19 +124,19 @@ sub _create_b64 {
 
 =head1 METHODS 
 
-=head2 $value = create([ length => <length> ])
+=head2 $value = $generator->create([ length => <length> ])
 
-=head2 $value = create_hex([ length => <length> ])
+=head2 $value = $generator->create_hex([ length => <length> ])
 
 Create a random hexadecimal value and return it. If <length> is specificied, then the string will be <length> characters long.
 
 If <length> is specified and not a multiple of 2, then $value will technically not be a valid hexadecimal value.
 
-=head2 $value = create_bin([ length => <length> ])
+=head2 $value = $generator->create_bin([ length => <length> ])
 
 Create a random binary value and return it. If <length> is specificied, then the value will be <length> bytes long.
 
-=head2 $value = create_b64([ length => <length> ])
+=head2 $value = $generator->create_b64([ length => <length> ])
 
 Create a random base64 value and return it. If <length> is specificied, then the value will be <length> bytes long.
 
